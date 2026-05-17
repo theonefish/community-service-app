@@ -1,21 +1,6 @@
 <template>
 	<view class="container">
-		<!-- 顶部导航栏 -->
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-arrow">←</text>
-			</view>
-			<view class="header-title">物业服务</view>
-			<view class="header-right">
-				<image class="avatar-small" src="/static/avatar/default.png" mode="aspectFill"></image>
-			</view>
-		</view>
-
-		<!-- 页面标题 -->
-		<view class="page-title-section">
-			<view class="page-main-title">物业报修</view>
-			<view class="page-desc">请填写报修信息，我们将尽快安排维修人员上门处理。</view>
-		</view>
+		<NavBar title="物业报修" :showBack="true" :showAvatar="true" bgColor="#2c7a7b" />
 
 		<!-- 报修表单 -->
 		<view class="form-section">
@@ -73,21 +58,10 @@
 				<view class="word-count">{{ description.length }}/200</view>
 			</view>
 
-			<!-- 上传图片 -->
+			<!-- 上传图片（使用 UploadImages 组件） -->
 			<view class="form-item">
 				<view class="form-label">上传图片（选填）</view>
-				<view class="upload-wrap">
-					<view class="upload-list">
-						<view class="upload-item" v-for="(img, index) in imageList" :key="index">
-							<image class="upload-img" :src="img" mode="aspectFill"></image>
-							<view class="delete-btn" @click="deleteImage(index)">×</view>
-						</view>
-						<view class="upload-btn" @click="chooseImage" v-if="imageList.length < 6">
-							<text class="upload-icon">📷</text>
-							<text class="upload-text">{{ imageList.length }}/6</text>
-						</view>
-					</view>
-				</view>
+				<UploadImages :maxCount="6" :imageList="imageList" @update:imageList="imageList = $event" />
 			</view>
 
 			<!-- 预约时间 -->
@@ -130,17 +104,19 @@
 		</view>
 
 		<!-- 提交按钮 -->
-		<view class="submit-section">
-			<view class="submit-btn" @click="submitRepair">提交报修</view>
+		<view class="submit-section" style="padding: 20px 16px;">
+			<view class="primary-btn" @click="submitRepair">提交报修</view>
 		</view>
 	</view>
 </template>
 
 <script>
+	import { repairApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
-				// 报修类型
+				// 报修类型（从 API 获取）
 				selectedType: '',
 				repairTypes: [
 					{ label: '水电维修', value: 'water', icon: '💧' },
@@ -169,14 +145,12 @@
 				],
 				// 联系人
 				contactName: '',
-				contactPhone: ''
+				contactPhone: '',
+				// 提交中状态
+				submitting: false
 			}
 		},
 		methods: {
-			// 返回上一页
-			goBack() {
-				uni.navigateBack()
-			},
 			// 选择报修类型
 			selectType(value) {
 				this.selectedType = value
@@ -189,23 +163,8 @@
 			selectTime(value) {
 				this.selectedTime = value
 			},
-			// 选择图片
-			chooseImage() {
-				uni.chooseImage({
-					count: 6 - this.imageList.length,
-					sizeType: ['compressed'],
-					sourceType: ['album', 'camera'],
-					success: (res) => {
-						this.imageList = [...this.imageList, ...res.tempFilePaths]
-					}
-				})
-			},
-			// 删除图片
-			deleteImage(index) {
-				this.imageList.splice(index, 1)
-			},
-			// 提交报修
-			submitRepair() {
+			// 提交报修（通过 API）
+			async submitRepair() {
 				// 表单验证
 				if (!this.selectedType) {
 					uni.showToast({ title: '请选择报修类型', icon: 'none' })
@@ -227,14 +186,27 @@
 				uni.showModal({
 					title: '确认提交',
 					content: '确认提交报修申请吗？',
-					success: (res) => {
+					success: async (res) => {
 						if (res.confirm) {
-							uni.showToast({
-								title: '提交成功',
-								icon: 'success'
-							})
-							// 清空表单
-							this.resetForm()
+							try {
+								this.submitting = true
+								await repairApi.submit({
+									type: this.selectedType,
+									description: this.description,
+									time: this.selectedTime,
+									images: this.imageList,
+									contactName: this.contactName,
+									contactPhone: this.contactPhone,
+									address: this.addressList[this.selectedAddress],
+									detailAddress: this.detailAddress
+								})
+								uni.showToast({ title: '提交成功', icon: 'success' })
+								this.resetForm()
+							} catch (err) {
+								uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+							} finally {
+								this.submitting = false
+							}
 						}
 					}
 				})
@@ -259,65 +231,6 @@
 		background-color: #f5f7fa;
 		min-height: 100vh;
 		padding-bottom: 40rpx;
-	}
-
-	/* 顶部导航栏 */
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-	}
-
-	.back-btn {
-		width: 60rpx;
-		height: 60rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.back-arrow {
-		font-size: 40rpx;
-		color: #333333;
-	}
-
-	.header-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #333333;
-	}
-
-	.header-right {
-		width: 60rpx;
-		height: 60rpx;
-	}
-
-	.avatar-small {
-		width: 56rpx;
-		height: 56rpx;
-		border-radius: 50%;
-		background-color: #e0e0e0;
-	}
-
-	/* 页面标题区域 */
-	.page-title-section {
-		padding: 30rpx 30rpx 20rpx;
-		background-color: #ffffff;
-	}
-
-	.page-main-title {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #333333;
-		margin-bottom: 12rpx;
-	}
-
-	.page-desc {
-		font-size: 26rpx;
-		color: #999999;
-		line-height: 1.6;
 	}
 
 	/* 表单区域 */
@@ -436,63 +349,6 @@
 		margin-top: 8rpx;
 	}
 
-	/* 图片上传 */
-	.upload-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16rpx;
-	}
-
-	.upload-item {
-		position: relative;
-		width: 160rpx;
-		height: 160rpx;
-		border-radius: 12rpx;
-		overflow: hidden;
-	}
-
-	.upload-img {
-		width: 100%;
-		height: 100%;
-	}
-
-	.delete-btn {
-		position: absolute;
-		top: -8rpx;
-		right: -8rpx;
-		width: 36rpx;
-		height: 36rpx;
-		background-color: #e64340;
-		color: #ffffff;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 24rpx;
-	}
-
-	.upload-btn {
-		width: 160rpx;
-		height: 160rpx;
-		background-color: #f5f7fa;
-		border-radius: 12rpx;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		border: 2rpx dashed #cccccc;
-	}
-
-	.upload-icon {
-		font-size: 48rpx;
-		margin-bottom: 8rpx;
-	}
-
-	.upload-text {
-		font-size: 22rpx;
-		color: #999999;
-	}
-
 	/* 时间选项 */
 	.time-options {
 		display: flex;
@@ -516,18 +372,8 @@
 		font-weight: bold;
 	}
 
-	/* 提交按钮 */
+	/* 提交按钮容器 */
 	.submit-section {
 		margin: 40rpx 30rpx;
-	}
-
-	.submit-btn {
-		background-color: #2c7a7b;
-		color: #ffffff;
-		font-size: 32rpx;
-		font-weight: bold;
-		text-align: center;
-		padding: 28rpx 0;
-		border-radius: 40rpx;
 	}
 </style>

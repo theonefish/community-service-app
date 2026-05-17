@@ -121,6 +121,8 @@
 </template>
 
 <script>
+	import { bookingApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
@@ -144,33 +146,8 @@
 				selectedDate: '5',
 				// 选中的时段
 				selectedTime: '',
-				// 空间列表
-				spaceList: [
-					{
-						name: '健身中心',
-						desc: '专业器械、全天候开放，每次限流10人。',
-						price: '免费使用',
-						capacity: '限10人',
-						icon: '🏋️',
-						image: '/static/booking/gym.jpg'
-					},
-					{
-						name: '共享会议室',
-						desc: '配备投影设备，适合商务会议及小型聚会。',
-						price: '20点/小时',
-						capacity: '限8人',
-						icon: '🏢',
-						image: '/static/booking/meeting.jpg'
-					},
-					{
-						name: '网球场',
-						desc: '标准场地网球设施，提供专业照明服务。',
-						price: '10点/小时',
-						capacity: '限4人',
-						icon: '🎾',
-						image: '/static/booking/tennis.jpg'
-					}
-				],
+				// 空间列表（从 API 获取）
+				spaceList: [],
 				// 时段列表
 				timeSlots: [
 					{ label: '08:00-09:00', disabled: false },
@@ -189,10 +166,25 @@
 					'如需取消预约，请至少提前2个小时在系统内操作，否则可能扣除相应积分。',
 					'请保持公共空间的整洁，使用完毕后请带走随身物品。',
 					'如遇设备故障，请及时联系物业服务中心（电话：400-123-9999）。'
-				]
+				],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchSpaces()
+		},
 		methods: {
+			// 从 API 获取可预约空间列表
+			async fetchSpaces() {
+				try {
+					this.loading = true
+					this.spaceList = await bookingApi.getSpaces()
+				} catch (err) {
+					console.error('获取空间列表失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()

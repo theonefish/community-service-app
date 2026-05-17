@@ -90,85 +90,69 @@
 			</view>
 		</view>
 	</view>
+	
+	<!-- 自定义液态玻璃 tabBar -->
+	<CustomTabBar :current="0" />
 </template>
 
 <script>
+	import { homeApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
-				// 轮播图数据
-				bannerList: [
-					{
-						tag: '最新动态',
-						title: '春季社区绿化升级工程正式启动',
-						desc: '共同打造更宜居、更美丽的绿色生态家园。',
-						image: '/static/banner/banner1.jpg',
-						bgColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-						path: '/pages/notice/notice'
-					},
-					{
-						tag: '社区活动',
-						title: '周末亲子运动会报名开始',
-						desc: '增进邻里感情，共享欢乐时光。',
-						image: '/static/banner/banner2.jpg',
-						bgColor: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-						path: '/pages/activity/activity'
-					},
-					{
-						tag: '通知公告',
-						title: '电梯维护保养通知',
-						desc: '本周三进行电梯例行保养，请留意。',
-						image: '/static/banner/banner3.jpg',
-						bgColor: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-						path: '/pages/notice/notice'
-					}
-				],
-				// 功能菜单数据
-				menuList: [
-					{ name: '社区公告', icon: '📢', bgColor: '#e8f4f8', path: '/pages/notice/notice' },
-					{ name: '报修申请', icon: '🔧', bgColor: '#e8f4f8', path: '/pages/repair-apply/repair-apply' },
-					{ name: '缴费中心', icon: '💳', bgColor: '#e8f4f8', path: '/pages/payment/payment' },
-					{ name: '社区活动', icon: '🎉', bgColor: '#e8f4f8', path: '/pages/activity/activity' },
-					{ name: '快递代收', icon: '🚚', bgColor: '#e8f4f8', path: '/pages/express/express' },
-					{ name: '邻里交流', icon: '💬', bgColor: '#e8f4f8', path: '/pages/help/help' },
-					{ name: '物业管家', icon: '🎧', bgColor: '#e8f4f8', path: '/pages/service/service' },
-					{ name: '志愿服务', icon: '🤝', bgColor: '#e8f4f8', path: '/pages/volunteer/volunteer' }
-				],
-				// 服务推荐数据
-				serviceList: [
-					{ name: '深度保洁', desc: '专业团队上门服务', icon: '🧹', bgColor: '#e8e0f0' },
-					{ name: '家庭医生', desc: '在线问诊及健康档案', icon: '⚕️', bgColor: '#e0e8f0' }
-				]
+				// 轮播图数据（从 API 获取）
+				bannerList: [],
+				// 功能菜单数据（从 API 获取）
+				menuList: [],
+				// 服务推荐数据（从 API 获取）
+				serviceList: [],
+				// 加载状态
+				loading: true
 			}
 		},
-		onLoad() {
-			// 页面加载时的逻辑
+		async onLoad() {
+			await this.fetchHomeData()
 		},
 		methods: {
+			// 从 API 获取首页数据
+			async fetchHomeData() {
+				try {
+					this.loading = true
+					const data = await homeApi.getHomeData()
+					this.bannerList = data.banners || []
+					this.menuList = data.menus || []
+					this.serviceList = data.services || []
+				} catch (err) {
+					console.error('获取首页数据失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 菜单点击事件 - 跳转到对应功能页面
-		onMenuClick(item) {
-			uni.navigateTo({
-				url: item.path
-			})
-		},
-		// 铃铛图标点击 - 跳转到社区公告页查看通知
-		goNotice() {
-			uni.navigateTo({
-				url: '/pages/notice/notice'
-			})
-		},
-		// 轮播图点击 - 根据banner的path跳转到对应页面
-		onBannerClick(item) {
-			uni.navigateTo({
-				url: item.path
-			})
-		},
-		// 查看全部 - 跳转到社区公告页
-		onMoreClick() {
-			uni.navigateTo({
-				url: '/pages/notice/notice'
-			})
-		}
+			onMenuClick(item) {
+				uni.navigateTo({
+					url: item.path
+				})
+			},
+			// 铃铛图标点击 - 跳转到社区公告页查看通知
+			goNotice() {
+				uni.navigateTo({
+					url: '/pages/notice/notice'
+				})
+			},
+			// 轮播图点击 - 根据banner的path跳转到对应页面
+			onBannerClick(item) {
+				uni.navigateTo({
+					url: item.path
+				})
+			},
+			// 查看全部 - 跳转到社区公告页
+			onMoreClick() {
+				uni.navigateTo({
+					url: '/pages/notice/notice'
+				})
+			}
 		}
 	}
 </script>
@@ -178,7 +162,7 @@
 	.container {
 		background-color: #f5f7fa;
 		min-height: 100vh;
-		padding-bottom: 30rpx;
+		padding-bottom: 140rpx;
 	}
 
 	/* 自定义导航栏 */

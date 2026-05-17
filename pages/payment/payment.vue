@@ -72,69 +72,58 @@
 </template>
 
 <script>
+	import { paymentApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
-				// 待缴账单列表
-				pendingBills: [
-					{
-						name: '物业管理费',
-						date: '2023年10月',
-						amount: '850.00',
-						detail: '住宅面积120㎡, 单价7.08元/㎡',
-						icon: '🏢',
-						bgColor: '#e8f4f8'
-					},
-					{
-						name: '停车费',
-						date: '2023年10月',
-						amount: '300.00',
-						detail: '车位号 B2-105, 包月费用',
-						icon: '🚗',
-						bgColor: '#e8e0f0'
-					},
-					{
-						name: '水电公摊费',
-						date: '2023年9月结算',
-						amount: '130.50',
-						detail: '公摊水费: ¥45.20    公摊电费: ¥85.30',
-						icon: '⚡',
-						bgColor: '#f0f0e8'
-					}
-				],
-				// 历史账单
-				historyBills: [
-					{
-						name: '2023年9月综合账单',
-						time: '2023-09-05 14:20',
-						amount: '1,250.00',
-						status: '已支付'
-					},
-					{
-						name: '2023年8月综合账单',
-						time: '2023-08-02 09:15',
-						amount: '1,250.00',
-						status: '已支付'
-					}
-				]
+				// 待缴账单列表（从 API 获取）
+				pendingBills: [],
+				// 历史账单（从 API 获取）
+				historyBills: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchPaymentData()
+		},
 		methods: {
+			// 从 API 获取缴费数据
+			async fetchPaymentData() {
+				try {
+					this.loading = true
+					const [pending, history] = await Promise.all([
+						paymentApi.getPendingBills(),
+						paymentApi.getHistoryBills()
+					])
+					this.pendingBills = pending || []
+					this.historyBills = history || []
+				} catch (err) {
+					console.error('获取缴费数据失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()
 			},
 			// 立即缴费（全部）
-			payAll() {
+			async payAll() {
 				uni.showModal({
 					title: '确认缴费',
-					content: '确认缴纳全部待缴费用 ¥1,280.50 吗？',
-					success: (res) => {
+					content: '确认缴纳全部待缴费用吗？',
+					success: async (res) => {
 						if (res.confirm) {
-							uni.showToast({
-								title: '支付成功',
-								icon: 'success'
-							})
+							try {
+								const ids = this.pendingBills.map(b => b.id)
+								await paymentApi.pay(ids)
+								uni.showToast({ title: '支付成功', icon: 'success' })
+								// 刷新数据
+								await this.fetchPaymentData()
+							} catch (err) {
+								uni.showToast({ title: '支付失败', icon: 'none' })
+							}
 						}
 					}
 				})

@@ -1,21 +1,6 @@
 <template>
 	<view class="container">
-		<!-- 顶部导航栏 -->
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-arrow">←</text>
-			</view>
-			<view class="header-title">物业服务</view>
-			<view class="header-right">
-				<image class="avatar-small" src="/static/avatar/default.png" mode="aspectFill"></image>
-			</view>
-		</view>
-
-		<!-- 页面标题 -->
-		<view class="page-title-section">
-			<view class="page-main-title">报修申请</view>
-			<view class="page-desc">请详细描述您遇到的问题，我们将尽快安排专业维修人员为您服务。</view>
-		</view>
+		<NavBar title="报修申请" :showBack="true" :showAvatar="true" bgColor="#2c7a7b" />
 
 		<!-- 服务类型 -->
 		<view class="form-section">
@@ -46,20 +31,11 @@
 			/>
 		</view>
 
-		<!-- 上传照片 -->
+		<!-- 上传照片（使用 UploadImages 组件） -->
 		<view class="form-section">
 			<view class="form-label">上传照片</view>
 			<view class="upload-desc">提供现场照片有助于我们更准确地评估问题（最多3张）</view>
-			<view class="upload-list">
-				<view class="upload-item" v-for="(img, index) in imageList" :key="index">
-					<image class="upload-img" :src="img" mode="aspectFill"></image>
-					<view class="delete-btn" @click="deleteImage(index)">×</view>
-				</view>
-				<view class="upload-btn" @click="chooseImage" v-if="imageList.length < 3">
-					<text class="upload-icon">📷</text>
-					<text class="upload-text">添加照片</text>
-				</view>
-			</view>
+			<UploadImages :maxCount="3" :imageList="imageList" @update:imageList="imageList = $event" />
 		</view>
 
 		<!-- 期望上门时间 -->
@@ -79,13 +55,15 @@
 		</view>
 
 		<!-- 提交按钮 -->
-		<view class="submit-section">
-			<view class="submit-btn" @click="submitApply">提交申请</view>
+		<view class="submit-section" style="padding: 20px 16px;">
+			<view class="primary-btn" @click="submitApply">提交申请</view>
 		</view>
 	</view>
 </template>
 
 <script>
+	import { repairApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
@@ -103,6 +81,8 @@
 				imageList: [],
 				// 时间选择
 				selectedTime: '',
+				// 提交中状态
+				submitting: false,
 				timeOptions: [
 					{ label: '尽快上门', value: 'asap' },
 					{ label: '明天上午 (09:00 - 12:00)', value: 'tomorrow_am' },
@@ -112,35 +92,16 @@
 			}
 		},
 		methods: {
-			// 返回上一页
-			goBack() {
-				uni.navigateBack()
-			},
 			// 选择服务类型
 			selectType(value) {
 				this.selectedType = value
-			},
-			// 选择图片
-			chooseImage() {
-				uni.chooseImage({
-					count: 3 - this.imageList.length,
-					sizeType: ['compressed'],
-					sourceType: ['album', 'camera'],
-					success: (res) => {
-						this.imageList = [...this.imageList, ...res.tempFilePaths]
-					}
-				})
-			},
-			// 删除图片
-			deleteImage(index) {
-				this.imageList.splice(index, 1)
 			},
 			// 选择时间
 			selectTime(value) {
 				this.selectedTime = value
 			},
-			// 提交申请
-			submitApply() {
+			// 提交申请（通过 API）
+			async submitApply() {
 				// 表单验证
 				if (!this.selectedType) {
 					uni.showToast({ title: '请选择服务类型', icon: 'none' })
@@ -158,14 +119,23 @@
 				uni.showModal({
 					title: '确认提交',
 					content: '确认提交报修申请吗？',
-					success: (res) => {
+					success: async (res) => {
 						if (res.confirm) {
-							uni.showToast({
-								title: '提交成功',
-								icon: 'success'
-							})
-							// 清空表单
-							this.resetForm()
+							try {
+								this.submitting = true
+								await repairApi.submit({
+									type: this.selectedType,
+									description: this.description,
+									time: this.selectedTime,
+									images: this.imageList
+								})
+								uni.showToast({ title: '提交成功', icon: 'success' })
+								this.resetForm()
+							} catch (err) {
+								uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+							} finally {
+								this.submitting = false
+							}
 						}
 					}
 				})
@@ -187,65 +157,6 @@
 		background-color: #f5f7fa;
 		min-height: 100vh;
 		padding-bottom: 40rpx;
-	}
-
-	/* 顶部导航栏 */
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-	}
-
-	.back-btn {
-		width: 60rpx;
-		height: 60rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.back-arrow {
-		font-size: 40rpx;
-		color: #333333;
-	}
-
-	.header-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #333333;
-	}
-
-	.header-right {
-		width: 60rpx;
-		height: 60rpx;
-	}
-
-	.avatar-small {
-		width: 56rpx;
-		height: 56rpx;
-		border-radius: 50%;
-		background-color: #e0e0e0;
-	}
-
-	/* 页面标题区域 */
-	.page-title-section {
-		padding: 30rpx 30rpx 20rpx;
-		background-color: #ffffff;
-	}
-
-	.page-main-title {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #333333;
-		margin-bottom: 12rpx;
-	}
-
-	.page-desc {
-		font-size: 26rpx;
-		color: #999999;
-		line-height: 1.6;
 	}
 
 	/* 表单区域 */
@@ -315,67 +226,11 @@
 		font-size: 28rpx;
 	}
 
-	/* 上传照片 */
+	/* 上传描述 */
 	.upload-desc {
 		font-size: 24rpx;
 		color: #999999;
 		margin-bottom: 20rpx;
-	}
-
-	.upload-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16rpx;
-	}
-
-	.upload-item {
-		position: relative;
-		width: 160rpx;
-		height: 160rpx;
-		border-radius: 12rpx;
-		overflow: hidden;
-	}
-
-	.upload-img {
-		width: 100%;
-		height: 100%;
-	}
-
-	.delete-btn {
-		position: absolute;
-		top: -8rpx;
-		right: -8rpx;
-		width: 36rpx;
-		height: 36rpx;
-		background-color: #e64340;
-		color: #ffffff;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 24rpx;
-	}
-
-	.upload-btn {
-		width: 160rpx;
-		height: 160rpx;
-		background-color: #f5f7fa;
-		border-radius: 12rpx;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		border: 2rpx dashed #cccccc;
-	}
-
-	.upload-icon {
-		font-size: 48rpx;
-		margin-bottom: 8rpx;
-	}
-
-	.upload-text {
-		font-size: 24rpx;
-		color: #999999;
 	}
 
 	/* 时间选项 */
@@ -400,18 +255,8 @@
 		color: #ffffff;
 	}
 
-	/* 提交按钮 */
+	/* 提交按钮容器 */
 	.submit-section {
 		margin: 40rpx 30rpx;
-	}
-
-	.submit-btn {
-		background: linear-gradient(135deg, #2c5f60 0%, #4a8a8b 100%);
-		color: #ffffff;
-		font-size: 32rpx;
-		font-weight: bold;
-		text-align: center;
-		padding: 28rpx 0;
-		border-radius: 40rpx;
 	}
 </style>

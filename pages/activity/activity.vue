@@ -112,43 +112,33 @@
 </template>
 
 <script>
+	import { activityApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
 				// 当前筛选
 				currentFilter: 'all',
-				// 活动列表
-				activityList: [
-					{
-						title: '晨间公园瑜伽',
-						date: '4月16日 08:00 - 09:00',
-						location: '中央草坪',
-						image: '/static/activity/yoga.jpg',
-						category: 'health',
-						isFull: false
-					},
-					{
-						title: '社区环保讲座：城市阳台种植',
-						date: '4月20日 19:30 - 20:30',
-						location: '图书馆多功能厅',
-						image: '/static/activity/lecture.jpg',
-						category: 'art',
-						status: '限报30人/已报28人',
-						isFull: false
-					},
-					{
-						title: '儿童绘本阅读与手作分享会',
-						date: '4月25日 10:00 - 11:30',
-						location: '社区活动中心儿童区',
-						image: '/static/activity/reading.jpg',
-						category: 'family',
-						status: '限报15组家庭',
-						isFull: true
-					}
-				]
+				// 活动列表（从 API 获取）
+				activityList: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchActivities()
+		},
 		methods: {
+			// 从 API 获取活动列表
+			async fetchActivities(category = 'all') {
+				try {
+					this.loading = true
+					this.activityList = await activityApi.getList(category)
+				} catch (err) {
+					console.error('获取活动列表失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()
@@ -158,16 +148,18 @@
 				this.currentFilter = filter
 			},
 			// 报名活动
-			joinActivity(name) {
+			async joinActivity(item) {
 				uni.showModal({
 					title: '确认报名',
-					content: `确认报名参加"${name}"吗？`,
-					success: (res) => {
+					content: `确认报名参加"${item.title}"吗？`,
+					success: async (res) => {
 						if (res.confirm) {
-							uni.showToast({
-								title: '报名成功',
-								icon: 'success'
-							})
+							try {
+								await activityApi.join(item.id)
+								uni.showToast({ title: '报名成功', icon: 'success' })
+							} catch (err) {
+								uni.showToast({ title: '报名失败', icon: 'none' })
+							}
 						}
 					}
 				})

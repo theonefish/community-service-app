@@ -15,18 +15,8 @@
 			<view class="title-desc">获取我们充满活力的社区的最新动态、重要通知和精选新闻，保持信息灵通。</view>
 		</view>
 
-		<!-- 分类标签 -->
-		<view class="category-section">
-			<view 
-				class="category-item" 
-				v-for="(item, index) in categoryList" 
-				:key="index"
-				:class="{ active: currentCategory === item.value }"
-				@click="switchCategory(item.value)"
-			>
-				{{ item.label }}
-			</view>
-		</view>
+		<!-- 分类标签（使用 FilterTabs 组件） -->
+		<FilterTabs :tabs="categoryLabels" :current="currentCategoryIndex" @change="switchCategory" />
 
 		<!-- 公告列表 -->
 		<view class="notice-list">
@@ -40,7 +30,7 @@
 						<view class="overlay-subtitle">EVENT</view>
 					</view>
 				</view>
-				
+
 				<!-- 内容区域 -->
 				<view class="notice-content">
 					<view class="notice-meta">
@@ -57,72 +47,46 @@
 			</view>
 		</view>
 
+		<!-- 空状态 -->
+		<EmptyState v-if="filteredNoticeList.length === 0" text="暂无公告" />
+
 		<!-- 加载更多 -->
-		<view class="load-more" @click="loadMore">
+		<view class="load-more" @click="loadMore" v-if="filteredNoticeList.length > 0">
 			<text>加载更多资讯</text>
 		</view>
 	</view>
 </template>
 
 <script>
+	import { noticeApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
-				// 当前选中的分类
-				currentCategory: 'all',
+				// 当前选中的分类索引
+				currentCategoryIndex: 0,
+				// 分类标签文本
+				categoryLabels: ['全部通知', '重要通知', '活动预告'],
 				// 分类列表
 				categoryList: [
 					{ label: '全部通知', value: 'all' },
 					{ label: '重要通知', value: 'important' },
 					{ label: '活动预告', value: 'activity' }
 				],
-				// 公告列表数据
-				noticeList: [
-					{
-						tag: '通知',
-						tagClass: 'tag-notice',
-						date: '2025/10/21',
-						title: '停水通知：A区水管网例行检修',
-						desc: '接自来水公司通知，因例行管网维护检修，本社区住宅楼将于本周三下午14:00至18:00暂停供水，请大家提前做好储水准备。',
-						link: '阅读更多',
-						image: '/static/notice/water.jpg',
-						category: 'important'
-					},
-					{
-						tag: '活动',
-						tagClass: 'tag-activity',
-						date: '2025/10/18',
-						title: '秋季社区文化节圆满落幕',
-						desc: '感谢各位居民的积极参与！本次社区文化节吸引了超过500个家庭参与，各类文艺汇演和互动游戏活动均获得圆满成功，期待来年再聚。',
-						link: '查看照片',
-						image: '/static/notice/event.jpg',
-						imageOverlay: true,
-						category: 'activity'
-					},
-					{
-						tag: '通知',
-						tagClass: 'tag-notice',
-						date: '2025/10/15',
-						title: '关于启用全新智能门禁系统的说明',
-						desc: '为了进一步提升小区的安全管理水平，物业服务中心已全面完成人脸识别智能门禁系统升级，请各位业主及时前往物业办公室进行人脸信息录入，以便正常使用。',
-						link: '阅读详细说明',
-						category: 'important'
-					},
-					{
-						tag: '活动',
-						tagClass: 'tag-activity',
-						date: '2025/10/10',
-						title: '垃圾分类积分兑换活动即将开始',
-						desc: '本社区垃圾分类积分兑换活动将于本周五在小区中心广场举行，欢迎广大居民参与兑换各类生活用品。',
-						link: '查看详情',
-						image: '/static/notice/recycle.jpg',
-						category: 'activity'
-					}
-				]
+				// 公告列表数据（从 API 获取）
+				noticeList: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchNotices()
+		},
 		computed: {
-			// 根据分类筛选公告
+			// 当前选中的分类值
+			currentCategory() {
+				return this.categoryList[this.currentCategoryIndex]?.value || 'all'
+			},
+			// 根据分类筛选公告（前端筛选，也可改为后端筛选）
 			filteredNoticeList() {
 				if (this.currentCategory === 'all') {
 					return this.noticeList
@@ -131,13 +95,24 @@
 			}
 		},
 		methods: {
+			// 从 API 获取公告列表
+			async fetchNotices(category = 'all') {
+				try {
+					this.loading = true
+					this.noticeList = await noticeApi.getList(category)
+				} catch (err) {
+					console.error('获取公告列表失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()
 			},
-			// 切换分类
-			switchCategory(value) {
-				this.currentCategory = value
+			// 切换分类（接收 FilterTabs 的索引参数）
+			switchCategory(index) {
+				this.currentCategoryIndex = index
 			},
 			// 查看详情 - 活动类跳转到社区活动页，其他弹toast
 			viewDetail(item) {
@@ -221,28 +196,6 @@
 		font-size: 26rpx;
 		color: #666666;
 		line-height: 1.6;
-	}
-
-	/* 分类标签 */
-	.category-section {
-		display: flex;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-		gap: 20rpx;
-	}
-
-	.category-item {
-		padding: 12rpx 28rpx;
-		border-radius: 30rpx;
-		font-size: 26rpx;
-		color: #666666;
-		background-color: #f0f0f0;
-		transition: all 0.3s;
-	}
-
-	.category-item.active {
-		background-color: #2c7a7b;
-		color: #ffffff;
 	}
 
 	/* 公告列表 */

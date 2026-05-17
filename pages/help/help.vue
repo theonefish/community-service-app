@@ -103,51 +103,40 @@
 </template>
 
 <script>
+	import { helpApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
 				// 搜索关键词
 				searchKeyword: '',
-				// 分类列表
-				categoryList: [
-					{
-						name: '物业报修',
-						desc: '漏水、电路故障、公区维护等指引。',
-						icon: '🏠',
-						bgColor: '#e8f4f8',
-						path: '/pages/repair-apply/repair-apply'
-					},
-					{
-						name: '停车服务',
-						desc: '月卡办理、临停缴费及车位租赁。',
-						icon: '🅿️',
-						bgColor: '#e8f4f8',
-						path: '/pages/payment/payment'
-					},
-					{
-						name: '社区活动',
-						desc: '活动报名流程及志愿者加入说明。',
-						icon: '📅',
-						bgColor: '#e8f4f8',
-						path: '/pages/activity/activity'
-					},
-					{
-						name: 'App 使用',
-						desc: '账号安全、通知设置及功能向导。',
-						icon: '📱',
-						bgColor: '#e8f4f8',
-						path: ''
-					}
-				],
-				// 热门问题
-				hotQuestions: [
-					'如何修改社区通行二维码的有效期？',
-					'缴纳物业费后如何在线开具发票？',
-					'地下车库地锁损坏由谁负责维修？'
-				]
+				// 分类列表（从 API 获取）
+				categoryList: [],
+				// 热门问题（从 API 获取）
+				hotQuestions: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchHelpData()
+		},
 		methods: {
+			// 从 API 获取帮助中心数据
+			async fetchHelpData() {
+				try {
+					this.loading = true
+					const [categories, questions] = await Promise.all([
+						helpApi.getCategories(),
+						helpApi.getHotQuestions()
+					])
+					this.categoryList = categories || []
+					this.hotQuestions = questions || []
+				} catch (err) {
+					console.error('获取帮助数据失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()

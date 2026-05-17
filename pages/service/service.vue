@@ -1,24 +1,6 @@
 <template>
 	<view class="container">
-		<!-- 顶部导航栏 -->
-		<view class="custom-nav">
-			<view class="nav-left">
-				<view class="grid-icon">
-					<view class="grid-cell"></view>
-					<view class="grid-cell"></view>
-					<view class="grid-cell"></view>
-					<view class="grid-cell"></view>
-				</view>
-			</view>
-			<view class="nav-title">物业服务</view>
-			<view class="nav-right" @click="goNotice">
-				<view class="bell-icon">
-					<view class="bell-body"></view>
-					<view class="bell-clapper"></view>
-					<view class="bell-dot"></view>
-				</view>
-			</view>
-		</view>
+		<NavBar title="物业服务" :showGrid="true" :showBell="true" @bellClick="goNotice" @gridClick="handleGrid" />
 
 		<!-- 联系物业卡片 -->
 		<view class="contact-card">
@@ -108,39 +90,45 @@
 			</view>
 		</view>
 	</view>
+	
+	<!-- 自定义液态玻璃 tabBar -->
+	<CustomTabBar :current="1" />
 </template>
 
 <script>
+	import { serviceApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
-				// 便捷服务列表
-				serviceList: [
-					{ name: '报修申请', icon: '🔧', bgColor: '#e8f4f8', path: '/pages/repair-apply/repair-apply' },
-					{ name: '缴费中心', icon: '💳', bgColor: '#e8f4f8', path: '/pages/payment/payment' },
-					{ name: '投诉建议', icon: '📝', bgColor: '#e8f4f8', path: '/pages/feedback/feedback' },
-					{ name: '公共空间预约', icon: '🏢', bgColor: '#e8f4f8', path: '/pages/booking/booking' }
-				],
-				// 物业通知列表
-				noticeList: [
-					{
-						title: '停水通知：关于3栋高区水箱清洗的公告',
-						desc: '尊敬的业主：为保证高区居民用水质量，物业服务中心计划于本周四（10月24日...',
-						time: '2小时前',
-						icon: '💧',
-						bgColor: '#fce8e8'
-					},
-					{
-						title: '电梯例行维保通知',
-						desc: '本周五将对全区客梯进行月度例行维护保养，具体保养时间段已在各单元大堂电...',
-						time: '昨天 10:30',
-						icon: '🏢',
-						bgColor: '#e8f4f8'
-					}
-				]
+				// 便捷服务列表（从 API 获取）
+				serviceList: [],
+				// 物业通知列表（从 API 获取）
+				noticeList: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchServiceData()
+		},
 		methods: {
+			// 从 API 获取物业服务页数据
+			async fetchServiceData() {
+				try {
+					this.loading = true
+					const data = await serviceApi.getServiceData()
+					this.serviceList = data.services || []
+					this.noticeList = data.notices || []
+				} catch (err) {
+					console.error('获取物业服务数据失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
+			// 网格菜单点击
+			handleGrid() {
+				uni.showToast({ title: '功能菜单', icon: 'none' })
+			},
 			// 联系物业
 			callProperty() {
 				uni.makePhoneCall({
@@ -199,85 +187,7 @@
 	.container {
 		background-color: #f5f7fa;
 		min-height: 100vh;
-		padding-bottom: 40rpx;
-	}
-
-	/* 自定义导航栏 */
-	.custom-nav {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-	}
-
-	.nav-left {
-		width: 60rpx;
-	}
-
-	/* 网格图标 */
-	.grid-icon {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		grid-template-rows: 1fr 1fr;
-		gap: 4rpx;
-		width: 40rpx;
-		height: 40rpx;
-	}
-
-	.grid-cell {
-		background-color: #2c7a7b;
-		border-radius: 2rpx;
-	}
-
-	.nav-title {
-		font-size: 36rpx;
-		font-weight: bold;
-		color: #2c7a7b;
-	}
-
-	.nav-right {
-		width: 60rpx;
-		display: flex;
-		justify-content: flex-end;
-	}
-
-	/* 铃铛图标 */
-	.bell-icon {
-		position: relative;
-		width: 40rpx;
-		height: 40rpx;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.bell-body {
-		width: 28rpx;
-		height: 28rpx;
-		border: 4rpx solid #2c7a7b;
-		border-radius: 14rpx 14rpx 0 0;
-		border-bottom: none;
-		position: relative;
-	}
-
-	.bell-clapper {
-		width: 8rpx;
-		height: 8rpx;
-		background-color: #2c7a7b;
-		border-radius: 50%;
-		margin-top: -2rpx;
-	}
-
-	.bell-dot {
-		position: absolute;
-		top: 0;
-		right: 2rpx;
-		width: 12rpx;
-		height: 12rpx;
-		background-color: #ff4444;
-		border-radius: 50%;
+		padding-bottom: 140rpx;
 	}
 
 	/* 联系物业卡片 */

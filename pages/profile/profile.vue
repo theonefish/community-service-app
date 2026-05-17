@@ -1,31 +1,22 @@
 <template>
 	<view class="container">
-		<!-- 顶部导航栏 -->
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-arrow">←</text>
-			</view>
-			<view class="header-title">个人中心</view>
-			<view class="header-right" @click="goSetting">
-				<text class="setting-icon">⚙️</text>
-			</view>
-		</view>
+		<NavBar title="个人中心" :showBack="true" :showSetting="true" bgColor="#2c7a7b" @settingClick="goSetting" />
 
 		<!-- 用户信息卡片 -->
 		<view class="user-card">
 			<!-- 头像区域 -->
 			<view class="avatar-wrap">
-				<image class="avatar" src="/static/avatar/default.png" mode="aspectFill"></image>
+				<image class="avatar" :src="userInfo.avatar" mode="aspectFill"></image>
 				<view class="edit-btn">
 					<text class="edit-icon">✏️</text>
 				</view>
 			</view>
 			<!-- 用户名和认证 -->
 			<view class="user-name-wrap">
-				<text class="user-name">林静宜</text>
+				<text class="user-name">{{ userInfo.name }}</text>
 				<view class="verify-badge">已认证</view>
 			</view>
-			<view class="user-uid">UID:88294105</view>
+			<view class="user-uid">UID:{{ userInfo.uid }}</view>
 			<!-- 标签区域 -->
 			<view class="user-tags">
 				<view class="tag-item">
@@ -49,7 +40,7 @@
 					</view>
 					<view class="menu-info">
 						<view class="menu-label">积分与优惠券</view>
-						<view class="menu-value">128积分 / 3张券</view>
+						<view class="menu-value">{{ userInfo.points }}积分 / {{ userInfo.coupons }}张券</view>
 					</view>
 				
 				</view>
@@ -128,20 +119,44 @@
 		<!-- 版本号 -->
 		<view class="version">VERSION 2.4.0 (LUMINA EDITION)</view>
 	</view>
+	
+	<!-- 自定义液态玻璃 tabBar -->
+	<CustomTabBar :current="2" />
 </template>
 
 <script>
+	import { userApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
+				// 用户信息（从 API 获取）
+				userInfo: {
+					name: '',
+					uid: '',
+					avatar: '/static/avatar/default.png',
+					points: 0,
+					coupons: 0
+				},
 				// 生物识别开关状态
-				bioEnabled: true
+				bioEnabled: true,
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchUserProfile()
+		},
 		methods: {
-			// 返回上一页
-			goBack() {
-				uni.navigateBack()
+			// 从 API 获取用户信息
+			async fetchUserProfile() {
+				try {
+					this.loading = true
+					this.userInfo = await userApi.getProfile()
+				} catch (err) {
+					console.error('获取用户信息失败:', err)
+				} finally {
+					this.loading = false
+				}
 			},
 			// 进入设置
 			goSetting() {
@@ -207,47 +222,7 @@
 	.container {
 		background-color: #f5f7fa;
 		min-height: 100vh;
-		padding-bottom: 40rpx;
-	}
-
-	/* 顶部导航栏 */
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-	}
-
-	.back-btn {
-		width: 60rpx;
-		height: 60rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.back-arrow {
-		font-size: 40rpx;
-		color: #333333;
-	}
-
-	.header-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #333333;
-	}
-
-	.header-right {
-		width: 60rpx;
-		height: 60rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.setting-icon {
-		font-size: 36rpx;
+		padding-bottom: 140rpx;
 	}
 
 	/* 用户信息卡片 */

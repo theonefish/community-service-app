@@ -102,31 +102,33 @@
 </template>
 
 <script>
+	import { expressApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
 				// 当前标签页
 				currentTab: 0,
-				// 待领取包裹
-				pendingPackages: [
-					{
-						name: '顺丰速运',
-						time: '今天到达 10:42 AM',
-						tracking: 'SF1049582910',
-						tag: '快递柜 A3',
-						tagClass: 'tag-blue'
-					},
-					{
-						name: '京东物流',
-						time: '昨天到达 4:15 PM',
-						tracking: 'JD992837465',
-						tag: '前台代收',
-						tagClass: 'tag-purple'
-					}
-				]
+				// 待领取包裹（从 API 获取）
+				pendingPackages: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchPackages()
+		},
 		methods: {
+			// 从 API 获取快递数据
+			async fetchPackages() {
+				try {
+					this.loading = true
+					this.pendingPackages = await expressApi.getPending()
+				} catch (err) {
+					console.error('获取快递数据失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()
@@ -135,12 +137,21 @@
 			switchTab(index) {
 				this.currentTab = index
 			},
-			// 显示取件码
-			showCode(item) {
-				uni.showToast({
-					title: `取件码: ${item.tracking}`,
-					icon: 'none'
-				})
+			// 显示取件码（从 API 获取真实取件码）
+			async showCode(item) {
+				try {
+					const result = await expressApi.getPickupCode(item.id)
+					const code = result.code || item.tracking
+					uni.showToast({
+						title: `取件码: ${code}`,
+						icon: 'none'
+					})
+				} catch (err) {
+					uni.showToast({
+						title: `取件码: ${item.tracking}`,
+						icon: 'none'
+					})
+				}
 			}
 		}
 	}

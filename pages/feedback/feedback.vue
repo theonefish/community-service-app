@@ -1,21 +1,6 @@
 <template>
 	<view class="container">
-		<!-- 顶部导航栏 -->
-		<view class="page-header">
-			<view class="back-btn" @click="goBack">
-				<text class="back-arrow">←</text>
-			</view>
-			<view class="header-title">物业服务</view>
-			<view class="header-right">
-				<image class="avatar-small" src="/static/avatar/default.png" mode="aspectFill"></image>
-			</view>
-		</view>
-
-		<!-- 页面标题 -->
-		<view class="page-title-section">
-			<view class="page-main-title">投诉建议</view>
-			<view class="page-desc">您的反馈是我们提升服务质量的动力。请详细描述您遇到的问题或建议，我们将尽快处理。</view>
-		</view>
+		<NavBar title="投诉建议" :showBack="true" :showAvatar="true" bgColor="#2c7a7b" />
 
 		<!-- 反馈表单 -->
 		<view class="form-section">
@@ -53,18 +38,13 @@
 				/>
 			</view>
 
-			<!-- 上传图片 -->
+			<!-- 上传图片（使用 UploadImages 组件） -->
 			<view class="form-item">
-				<view class="upload-list">
-					<view class="upload-item" v-for="(img, index) in imageList" :key="index">
-						<image class="upload-img" :src="img" mode="aspectFill"></image>
-						<view class="delete-btn" @click="deleteImage(index)">×</view>
-					</view>
-					<view class="upload-btn" @click="chooseImage" v-if="imageList.length < 4">
-						<text class="upload-icon">📷</text>
-						<text class="upload-text">添加图片</text>
-					</view>
+				<view class="form-label">
+					<text class="label-icon">📷</text>
+					<text>上传图片</text>
 				</view>
+				<UploadImages :maxCount="4" :imageList="imageList" @update:imageList="imageList = $event" />
 			</view>
 		</view>
 
@@ -114,13 +94,15 @@
 		</view>
 
 		<!-- 提交按钮 -->
-		<view class="submit-section">
-			<view class="submit-btn" @click="submitFeedback">提交反馈</view>
+		<view class="submit-section" style="padding: 20px 16px;">
+			<view class="primary-btn" @click="submitFeedback">提交反馈</view>
 		</view>
 	</view>
 </template>
 
 <script>
+	import { feedbackApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
@@ -140,6 +122,8 @@
 				imageList: [],
 				// 是否匿名
 				isAnonymous: false,
+				// 提交中状态
+				submitting: false,
 				// 联系人信息
 				contactName: '',
 				contactPhone: '',
@@ -161,27 +145,12 @@
 				}
 				this.selectedType = value
 			},
-			// 选择图片
-			chooseImage() {
-				uni.chooseImage({
-					count: 4 - this.imageList.length,
-					sizeType: ['compressed'],
-					sourceType: ['album', 'camera'],
-					success: (res) => {
-						this.imageList = [...this.imageList, ...res.tempFilePaths]
-					}
-				})
-			},
-			// 删除图片
-			deleteImage(index) {
-				this.imageList.splice(index, 1)
-			},
 			// 切换匿名
 			toggleAnonymous(e) {
 				this.isAnonymous = e.detail.value
 			},
-			// 提交反馈
-			submitFeedback() {
+			// 提交反馈（通过 API）
+			async submitFeedback() {
 				// 表单验证
 				if (!this.selectedType) {
 					uni.showToast({ title: '请选择反馈类型', icon: 'none' })
@@ -195,14 +164,23 @@
 				uni.showModal({
 					title: '确认提交',
 					content: '确认提交您的反馈吗？',
-					success: (res) => {
+					success: async (res) => {
 						if (res.confirm) {
-							uni.showToast({
-								title: '提交成功',
-								icon: 'success'
-							})
-							// 清空表单
-							this.resetForm()
+							try {
+								this.submitting = true
+								await feedbackApi.submit({
+									type: this.selectedType,
+									description: this.description,
+									images: this.imageList,
+									isAnonymous: this.isAnonymous
+								})
+								uni.showToast({ title: '提交成功', icon: 'success' })
+								this.resetForm()
+							} catch (err) {
+								uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+							} finally {
+								this.submitting = false
+							}
 						}
 					}
 				})
@@ -227,65 +205,6 @@
 		background-color: #f5f7fa;
 		min-height: 100vh;
 		padding-bottom: 40rpx;
-	}
-
-	/* 顶部导航栏 */
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-	}
-
-	.back-btn {
-		width: 60rpx;
-		height: 60rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.back-arrow {
-		font-size: 40rpx;
-		color: #333333;
-	}
-
-	.header-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #333333;
-	}
-
-	.header-right {
-		width: 60rpx;
-		height: 60rpx;
-	}
-
-	.avatar-small {
-		width: 56rpx;
-		height: 56rpx;
-		border-radius: 50%;
-		background-color: #e0e0e0;
-	}
-
-	/* 页面标题区域 */
-	.page-title-section {
-		padding: 30rpx 30rpx 20rpx;
-		background-color: #ffffff;
-	}
-
-	.page-main-title {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #333333;
-		margin-bottom: 12rpx;
-	}
-
-	.page-desc {
-		font-size: 26rpx;
-		color: #999999;
-		line-height: 1.6;
 	}
 
 	/* 表单区域 */
@@ -356,63 +275,6 @@
 		font-size: 28rpx;
 	}
 
-	/* 图片上传 */
-	.upload-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16rpx;
-	}
-
-	.upload-item {
-		position: relative;
-		width: 140rpx;
-		height: 140rpx;
-		border-radius: 12rpx;
-		overflow: hidden;
-	}
-
-	.upload-img {
-		width: 100%;
-		height: 100%;
-	}
-
-	.delete-btn {
-		position: absolute;
-		top: -8rpx;
-		right: -8rpx;
-		width: 32rpx;
-		height: 32rpx;
-		background-color: #e64340;
-		color: #ffffff;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 24rpx;
-	}
-
-	.upload-btn {
-		width: 140rpx;
-		height: 140rpx;
-		background-color: #f5f7fa;
-		border-radius: 12rpx;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		border: 2rpx dashed #cccccc;
-	}
-
-	.upload-icon {
-		font-size: 40rpx;
-		margin-bottom: 8rpx;
-	}
-
-	.upload-text {
-		font-size: 22rpx;
-		color: #999999;
-	}
-
 	/* 联系方式头部 */
 	.contact-header {
 		display: flex;
@@ -458,18 +320,8 @@
 		color: #333333;
 	}
 
-	/* 提交按钮 */
+	/* 提交按钮容器 */
 	.submit-section {
 		margin: 40rpx 30rpx;
-	}
-
-	.submit-btn {
-		background: linear-gradient(135deg, #2c5f60 0%, #4a8a8b 100%);
-		color: #ffffff;
-		font-size: 32rpx;
-		font-weight: bold;
-		text-align: center;
-		padding: 28rpx 0;
-		border-radius: 40rpx;
 	}
 </style>

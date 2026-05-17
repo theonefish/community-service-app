@@ -1,21 +1,6 @@
 <template>
 	<view class="container">
-		<!-- 顶部导航栏 -->
-		<view class="custom-nav">
-			<view class="nav-left" @click="goBack">
-				<text class="back-arrow">←</text>
-			</view>
-			<view class="nav-title">社区服务</view>
-			<view class="nav-right">
-				<image class="avatar-small" src="/static/avatar/default.png" mode="aspectFill"></image>
-			</view>
-		</view>
-
-		<!-- 页面标题 -->
-		<view class="page-title-section">
-			<view class="page-main-title">提交维修申请</view>
-			<view class="page-desc">请填写下方表单，我们的专业团队将尽快为您处理。</view>
-		</view>
+		<NavBar title="提交维修申请" :showBack="true" :showAvatar="true" bgColor="#2c7a7b" />
 
 		<!-- 服务类型 -->
 		<view class="form-section">
@@ -48,20 +33,8 @@
 
 		<!-- 上传照片 -->
 		<view class="form-section">
-			<view class="upload-area" @click="chooseImage" v-if="imageList.length === 0">
-				<text class="upload-icon">📷</text>
-				<text class="upload-text">点击上传照片</text>
-				<text class="upload-hint">支持 JPG, PNG, 最大 5MB</text>
-			</view>
-			<view class="upload-list" v-else>
-				<view class="upload-item" v-for="(img, index) in imageList" :key="index">
-					<image class="upload-img" :src="img" mode="aspectFill"></image>
-					<view class="delete-btn" @click="deleteImage(index)">×</view>
-				</view>
-				<view class="upload-btn" @click="chooseImage" v-if="imageList.length < 3">
-					<text class="add-icon">+</text>
-				</view>
-			</view>
+			<view class="form-label">上传照片</view>
+			<UploadImages :maxCount="3" :imageList="imageList" @update:imageList="imageList = $event" />
 		</view>
 
 		<!-- 偏好联系时间 -->
@@ -81,13 +54,15 @@
 		</view>
 
 		<!-- 提交按钮 -->
-		<view class="submit-section">
-			<view class="submit-btn" @click="submitRepair">提交申请</view>
+		<view class="submit-section" style="padding: 20px 16px;">
+			<view class="primary-btn" @click="submitRepair">提交申请</view>
 		</view>
 	</view>
 </template>
 
 <script>
+	import { repairApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
@@ -105,6 +80,8 @@
 				imageList: [],
 				// 时间选择
 				selectedTime: '',
+				// 提交中状态
+				submitting: false,
 				timeOptions: [
 					{ label: '早上 (08:00 - 12:00)', value: 'morning' },
 					{ label: '下午 (13:00 - 17:00)', value: 'afternoon' },
@@ -113,35 +90,16 @@
 			}
 		},
 		methods: {
-			// 返回上一页
-			goBack() {
-				uni.navigateBack()
-			},
 			// 选择服务类型
 			selectType(value) {
 				this.selectedType = value
-			},
-			// 选择图片
-			chooseImage() {
-				uni.chooseImage({
-					count: 3 - this.imageList.length,
-					sizeType: ['compressed'],
-					sourceType: ['album', 'camera'],
-					success: (res) => {
-						this.imageList = [...this.imageList, ...res.tempFilePaths]
-					}
-				})
-			},
-			// 删除图片
-			deleteImage(index) {
-				this.imageList.splice(index, 1)
 			},
 			// 选择时间
 			selectTime(value) {
 				this.selectedTime = value
 			},
-			// 提交申请
-			submitRepair() {
+			// 提交申请（通过 API）
+			async submitRepair() {
 				// 表单验证
 				if (!this.selectedType) {
 					uni.showToast({ title: '请选择服务类型', icon: 'none' })
@@ -159,14 +117,23 @@
 				uni.showModal({
 					title: '确认提交',
 					content: '确认提交维修申请吗？',
-					success: (res) => {
+					success: async (res) => {
 						if (res.confirm) {
-							uni.showToast({
-								title: '提交成功',
-								icon: 'success'
-							})
-							// 清空表单
-							this.resetForm()
+							try {
+								this.submitting = true
+								await repairApi.submit({
+									type: this.selectedType,
+									description: this.description,
+									time: this.selectedTime,
+									images: this.imageList
+								})
+								uni.showToast({ title: '提交成功', icon: 'success' })
+								this.resetForm()
+							} catch (err) {
+								uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+							} finally {
+								this.submitting = false
+							}
 						}
 					}
 				})
@@ -188,71 +155,6 @@
 		background-color: #f5f7fa;
 		min-height: 100vh;
 		padding-bottom: 40rpx;
-	}
-
-	/* 自定义导航栏 */
-	.custom-nav {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 20rpx 30rpx;
-		background-color: #ffffff;
-	}
-
-	.nav-left {
-		width: 60rpx;
-	}
-
-	/* 网格图标 */
-	.grid-icon {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		grid-template-rows: 1fr 1fr;
-		gap: 4rpx;
-		width: 40rpx;
-		height: 40rpx;
-	}
-
-	.grid-cell {
-		background-color: #2c7a7b;
-		border-radius: 2rpx;
-	}
-
-	.nav-title {
-		font-size: 36rpx;
-		font-weight: bold;
-		color: #2c7a7b;
-	}
-
-	.nav-right {
-		width: 60rpx;
-		height: 60rpx;
-	}
-
-	.avatar-small {
-		width: 56rpx;
-		height: 56rpx;
-		border-radius: 50%;
-		background-color: #e0e0e0;
-	}
-
-	/* 页面标题区域 */
-	.page-title-section {
-		padding: 30rpx 30rpx 20rpx;
-		background-color: #ffffff;
-	}
-
-	.page-main-title {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #333333;
-		margin-bottom: 12rpx;
-	}
-
-	.page-desc {
-		font-size: 26rpx;
-		color: #999999;
-		line-height: 1.6;
 	}
 
 	/* 表单区域 */
@@ -322,85 +224,6 @@
 		font-size: 28rpx;
 	}
 
-	/* 上传区域 */
-	.upload-area {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 60rpx 0;
-		background-color: #f5f7fa;
-		border-radius: 16rpx;
-		border: 2rpx dashed #cccccc;
-	}
-
-	.upload-icon {
-		font-size: 56rpx;
-		margin-bottom: 12rpx;
-	}
-
-	.upload-text {
-		font-size: 28rpx;
-		color: #666666;
-		margin-bottom: 8rpx;
-	}
-
-	.upload-hint {
-		font-size: 22rpx;
-		color: #999999;
-	}
-
-	/* 上传列表 */
-	.upload-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16rpx;
-	}
-
-	.upload-item {
-		position: relative;
-		width: 160rpx;
-		height: 160rpx;
-		border-radius: 12rpx;
-		overflow: hidden;
-	}
-
-	.upload-img {
-		width: 100%;
-		height: 100%;
-	}
-
-	.delete-btn {
-		position: absolute;
-		top: -8rpx;
-		right: -8rpx;
-		width: 36rpx;
-		height: 36rpx;
-		background-color: #e64340;
-		color: #ffffff;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 24rpx;
-	}
-
-	.upload-btn {
-		width: 160rpx;
-		height: 160rpx;
-		background-color: #f5f7fa;
-		border-radius: 12rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: 2rpx dashed #cccccc;
-	}
-
-	.add-icon {
-		font-size: 48rpx;
-		color: #999999;
-	}
-
 	/* 时间选项 */
 	.time-list {
 		display: flex;
@@ -423,18 +246,8 @@
 		color: #ffffff;
 	}
 
-	/* 提交按钮 */
+	/* 提交按钮容器 */
 	.submit-section {
 		margin: 40rpx 30rpx;
-	}
-
-	.submit-btn {
-		background: linear-gradient(135deg, #2c5f60 0%, #4a8a8b 100%);
-		color: #ffffff;
-		font-size: 32rpx;
-		font-weight: bold;
-		text-align: center;
-		padding: 28rpx 0;
-		border-radius: 40rpx;
 	}
 </style>

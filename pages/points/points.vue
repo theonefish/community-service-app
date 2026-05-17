@@ -133,51 +133,52 @@
 </template>
 
 <script>
+	import { pointsApi } from '@/api/index.js'
+
 	export default {
 		data() {
 			return {
 				// 当前优惠券标签页
 				currentTab: 0,
-				// 积分明细数据
-				pointsList: [
-					{
-						title: '社区公益活动奖励',
-						date: '2023年10月24日',
-						desc: '垃圾分类宣传',
-						value: 500,
-						icon: '🌱',
-						bgColor: '#e8f4f8'
-					},
-					{
-						title: '物业费缴纳成功',
-						date: '2023年10月20日',
-						desc: '线上自动缴费',
-						value: 200,
-						icon: '🏠',
-						bgColor: '#e8f4f8'
-					},
-					{
-						title: '兑换超市代金券',
-						date: '2023年10月15日',
-						desc: '50元无门槛',
-						value: -1000,
-						icon: '🎫',
-						bgColor: '#fce8e8'
-					}
-				]
+				// 积分信息（从 API 获取）
+				pointsInfo: {},
+				// 积分明细数据（从 API 获取）
+				pointsList: [],
+				loading: true
 			}
 		},
+		async onLoad() {
+			await this.fetchPointsData()
+		},
 		methods: {
+			// 从 API 获取积分数据
+			async fetchPointsData() {
+				try {
+					this.loading = true
+					const [info, history] = await Promise.all([
+						pointsApi.getPointsInfo(),
+						pointsApi.getHistory()
+					])
+					this.pointsInfo = info || {}
+					this.pointsList = history || []
+				} catch (err) {
+					console.error('获取积分数据失败:', err)
+				} finally {
+					this.loading = false
+				}
+			},
 			// 返回上一页
 			goBack() {
 				uni.navigateBack()
 			},
 			// 立即兑换
-			exchangePoints() {
-				uni.showToast({
-					title: '立即兑换',
-					icon: 'none'
-				})
+			async exchangePoints() {
+				try {
+					await pointsApi.exchange({ type: 'points' })
+					uni.showToast({ title: '兑换成功', icon: 'success' })
+				} catch (err) {
+					uni.showToast({ title: '兑换失败', icon: 'none' })
+				}
 			},
 			// 积分规则
 			pointsRule() {
